@@ -1,291 +1,35 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PAUL-TOOLS | OSINT Interface</title>
-    <style>
-        :root {
-            --primary-red: #ff4d4d;
-            --bg-dark: #0a0a0a;
-            --card-bg: #1a1a1a;
-            --text-gray: #cccccc;
-        }
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    const targetUrl = "https://brixhub.net" + url.pathname + url.search;
 
-        body {
-            background-color: var(--bg-dark);
-            color: white;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
+    // Récupérer les headers d'origine
+    const headers = new Headers(request.headers);
+    
+    // Forcer les autorisations CORS pour ton site
+    const corsHeaders = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, X-API-Key",
+    };
 
-        .container {
-            width: 90%;
-            max-width: 800px;
-            background: var(--card-bg);
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            border: 1px solid #333;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 2rem;
-            border-bottom: 2px solid var(--primary-red);
-            padding-bottom: 1rem;
-        }
-
-        h1 {
-            color: var(--primary-red);
-            letter-spacing: 5px;
-            margin: 0;
-            font-size: 2.5rem;
-            text-transform: uppercase;
-        }
-
-        .grid-form {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-        }
-
-        .input-group {
-            display: flex;
-            flex-direction: column;
-        }
-
-        label {
-            font-size: 0.8rem;
-            color: var(--text-gray);
-            margin-bottom: 5px;
-            text-transform: uppercase;
-        }
-
-        input {
-            background: #252525;
-            border: 1px solid #444;
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            outline: none;
-            transition: border 0.3s;
-        }
-
-        input:focus {
-            border-color: var(--primary-red);
-        }
-
-        .actions {
-            margin-top: 2rem;
-            display: flex;
-            gap: 10px;
-        }
-
-        button {
-            flex: 1;
-            padding: 15px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            text-transform: uppercase;
-            transition: 0.3s;
-        }
-
-        .btn-search {
-            background-color: var(--primary-red);
-            color: white;
-        }
-
-        .btn-search:hover {
-            background-color: #cc0000;
-            box-shadow: 0 0 15px rgba(255, 77, 77, 0.4);
-        }
-
-        .btn-clear {
-            background-color: #444;
-            color: white;
-        }
-
-        #results {
-            margin-top: 2rem;
-            padding: 1rem;
-            background: #000;
-            border-radius: 5px;
-            max-height: 400px;
-            overflow-y: auto;
-            display: none;
-            font-family: 'Courier New', Courier, monospace;
-        }
-
-        .profile-card {
-            border-left: 3px solid var(--primary-red);
-            padding: 10px;
-            margin-bottom: 15px;
-            background: #111;
-        }
-
-        .loader {
-            display: none;
-            text-align: center;
-            color: var(--primary-red);
-            margin: 10px 0;
-        }
-    </style>
-</head>
-<body>
-
-<div class="container">
-    <div class="header">
-        <h1>PAUL-TOOLS 🔍</h1>
-        <p style="color: #666;">Interface de Recherche OSINT</p>
-    </div>
-
-    <form id="searchForm" class="grid-form">
-        <div class="input-group">
-            <label>Nom de famille</label>
-            <input type="text" id="nom_famille">
-        </div>
-        <div class="input-group">
-            <label>Prénom</label>
-            <input type="text" id="prenom">
-        </div>
-        <div class="input-group">
-            <label>Nom d'affichage</label>
-            <input type="text" id="nom_affichage">
-        </div>
-        <div class="input-group">
-            <label>Email</label>
-            <input type="email" id="email">
-        </div>
-        <div class="input-group">
-            <label>Téléphone</label>
-            <input type="text" id="telephone">
-        </div>
-        <div class="input-group">
-            <label>Ville</label>
-            <input type="text" id="ville">
-        </div>
-        <div class="input-group">
-            <label>Code Postal</label>
-            <input type="text" id="code_postal">
-        </div>
-        <div class="input-group">
-            <label>Entreprise</label>
-            <input type="text" id="societe">
-        </div>
-        <div class="input-group">
-            <label>Plaque d'immatriculation</label>
-            <input type="text" id="immatriculation">
-        </div>
-    </form>
-
-    <div class="actions">
-        <button class="btn-clear" onclick="resetForm()">Effacer</button>
-        <button class="btn-search" onclick="lancerRecherche()">Lancer la Recherche</button>
-    </div>
-
-    <div id="loader" class="loader">Recherche dans les bases de données en cours... 📡</div>
-    <div id="results"></div>
-</div>
-
-<script>
-    const API_KEY = "brix_uNAGYffSgJk1fKnq2VLmq0p2ZI9es2_3Y_Ef-spgPBKzPi6q";
-    const BASE_URL = "https://corsproxy.io/?https://brixhub.net/api/v1/search";
-
-    function resetForm() {
-        document.getElementById('searchForm').reset();
-        document.getElementById('results').style.display = 'none';
+    if (request.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders });
     }
 
-    async function lancerRecherche() {
-        const resultsDiv = document.getElementById('results');
-        const loader = document.getElementById('loader');
-        
-        // Construction du payload comme dans ton script Python
-        const fields = [
-            'nom_famille', 'prenom', 'nom_affichage', 'email', 
-            'telephone', 'ville', 'code_postal', 'societe', 'immatriculation'
-        ];
-        
-        let payload = { flexible: true };
-        let hasData = false;
+    const response = await fetch(targetUrl, {
+      method: request.method,
+      headers: headers,
+      body: request.method === "POST" ? await request.arrayBuffer() : null,
+    });
 
-        fields.forEach(field => {
-            const val = document.getElementById(field).value.trim();
-            if (val) {
-                payload[field] = val;
-                hasData = true;
-            }
-        });
+    const responseHeaders = new Headers(response.headers);
+    Object.keys(corsHeaders).forEach(k => responseHeaders.set(k, corsHeaders[k]));
 
-        if (!hasData) {
-            alert("Veuillez renseigner au moins une information !");
-            return;
-        }
-
-        // Affichage du chargement
-        loader.style.display = 'block';
-        resultsDiv.style.display = 'none';
-        resultsDiv.innerHTML = '';
-
-        try {
-            const response = await fetch(BASE_URL, {
-                method: 'POST',
-                headers: {
-                    "X-API-Key": API_KEY,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (response.status === 200) {
-                const data = await response.json();
-                const results = data.data?.results || [];
-                afficherResultats(results);
-            } else {
-                resultsDiv.innerHTML = `<p style="color:red">Erreur API (${response.status})</p>`;
-                resultsDiv.style.display = 'block';
-            }
-        } catch (error) {
-            resultsDiv.innerHTML = `<p style="color:red">Erreur de connexion : ${error.message}</p>`;
-            resultsDiv.style.display = 'block';
-        } finally {
-            loader.style.display = 'none';
-        }
-    }
-
-    function afficherResultats(results) {
-        const resultsDiv = document.getElementById('results');
-        resultsDiv.style.display = 'block';
-
-        if (results.length === 0) {
-            resultsDiv.innerHTML = '<p>⚠️ Aucun résultat trouvé.</p>';
-            return;
-        }
-
-        resultsDiv.innerHTML = `<h3>✅ ${results.length} RÉSULTAT(S) :</h3>`;
-        
-        results.forEach((profil, i) => {
-            let html = `<div class="profile-card">
-                <strong>👤 PROFIL #${i + 1}</strong> (Confiance: ${profil._confidence || 'N/A'}%)<br><br>`;
-            
-            for (const [key, value] of Object.entries(profil)) {
-                if (!key.startsWith('_')) {
-                    const cleanKey = key.replace(/_/g, ' ').toUpperCase();
-                    html += `<span style="color: #aaa">${cleanKey}:</span> ${value}<br>`;
-                }
-            }
-            html += `</div>`;
-            resultsDiv.innerHTML += html;
-        });
-    }
-</script>
-
-</body>
-</html>
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: responseHeaders,
+    });
+  },
+};
