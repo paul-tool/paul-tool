@@ -132,55 +132,94 @@
 </div>
 
 <script>
-    // URL de ton serveur Python sur Render (à mettre à jour)
+    // 1. UTILISE TON URL RENDER ICI (ne pas oublier le /search à la fin)
     const API_URL = "https://api-paul-tool.onrender.com/search";
 
-    function toggleCat(el) {
-        el.parentElement.classList.toggle('active');
+    function resetForm() {
+        document.getElementById('searchForm').reset();
+        document.getElementById('results').style.display = 'none';
     }
 
-    async function lancer() {
-        const resBox = document.getElementById('results');
-        const inputs = document.querySelectorAll('input');
+    async function lancerRecherche() {
+        const resultsDiv = document.getElementById('results');
+        const loader = document.getElementById('loader');
+        
+        const fields = [
+            'nom_famille', 'prenom', 'nom_affichage', 'email', 
+            'telephone', 'ville', 'code_postal', 'societe', 'immatriculation'
+        ];
+        
         let payload = { flexible: true };
-        let found = 0;
+        let hasData = false;
 
-        inputs.forEach(i => {
-            if (i.value.trim()) {
-                payload[i.id] = i.value.trim();
-                found++;
+        fields.forEach(field => {
+            const val = document.getElementById(field).value.trim();
+            if (val) {
+                payload[field] = val;
+                hasData = true;
             }
         });
 
-        if (found === 0) return alert("Veuillez saisir au moins une info !");
+        if (!hasData) {
+            alert("Veuillez renseigner au moins une information !");
+            return;
+        }
 
-        resBox.style.display = 'block';
-        resBox.innerHTML = "📡 Interrogation de la base de données...";
+        loader.style.display = 'block';
+        resultsDiv.style.display = 'none';
+        resultsDiv.innerHTML = '';
 
         try {
+            // 2. ON APPELLE TON SERVEUR (plus besoin de la clé API ici, elle est dans app.py)
             const response = await fetch(API_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    "Content-Type": "application/json"
+                },
                 body: JSON.stringify(payload)
             });
+
             const data = await response.json();
-            
-            if (data.data && data.data.results) {
-                let html = `<h3>✅ ${data.data.results.length} Résultat(s)</h3>`;
-                data.data.results.forEach(p => {
-                    html += `<div class="profile-card"><b>🎯 CIBLE IDENTIFIÉE</b> (Confiance: ${p._confidence}%)<br>`;
-                    for (let [k, v] of Object.entries(p)) {
-                        if(!k.startsWith('_')) html += `<br><span style="color:#666">${k.toUpperCase()}:</span> ${v}`;
-                    }
-                    html += `</div>`;
-                });
-                resBox.innerHTML = html;
+
+            if (response.ok) {
+                const results = data.data?.results || [];
+                afficherResultats(results);
             } else {
-                resBox.innerHTML = "❌ Aucun résultat trouvé.";
+                resultsDiv.innerHTML = `<p style="color:red">Erreur : ${data.message || 'Problème serveur'}</p>`;
+                resultsDiv.style.display = 'block';
             }
-        } catch (e) {
-            resBox.innerHTML = "🛑 Erreur de connexion au backend Python.";
+        } catch (error) {
+            resultsDiv.innerHTML = `<p style="color:red">Erreur de connexion : Vérifie que Render est bien allumé.</p>`;
+            resultsDiv.style.display = 'block';
+        } finally {
+            loader.style.display = 'none';
         }
+    }
+
+    function afficherResultats(results) {
+        const resultsDiv = document.getElementById('results');
+        resultsDiv.style.display = 'block';
+
+        if (!results || results.length === 0) {
+            resultsDiv.innerHTML = '<p>⚠️ Aucun résultat trouvé pour cette recherche.</p>';
+            return;
+        }
+
+        resultsDiv.innerHTML = `<h3>✅ ${results.length} RÉSULTAT(S) :</h3>`;
+        
+        results.forEach((profil, i) => {
+            let html = `<div class="profile-card">
+                <strong>👤 PROFIL #${i + 1}</strong> (Confiance: ${profil._confidence || 'N/A'}%)<br><br>`;
+            
+            for (const [key, value] of Object.entries(profil)) {
+                if (!key.startsWith('_')) {
+                    const cleanKey = key.replace(/_/g, ' ').toUpperCase();
+                    html += `<span style="color: #aaa">${cleanKey}:</span> ${value}<br>`;
+                }
+            }
+            html += `</div>`;
+            resultsDiv.innerHTML += html;
+        });
     }
 </script>
 
