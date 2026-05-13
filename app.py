@@ -9,6 +9,10 @@ app = Flask(__name__)
 # Cela permet à ton site GitHub Pages d'envoyer des requêtes à ce serveur
 CORS(app)
 
+@app.route('/')
+def home():
+    return "Le serveur de Paul-Tools est en ligne ! 🚀"
+
 # Configuration de l'API BrixHub
 API_KEY = "brix_uNAGYffSgJk1fKnq2VLmq0p2ZI9es2_3Y_Ef-spgPBKzPi6q"
 SEARCH_URL = "https://brixhub.net/api/v1/search"
