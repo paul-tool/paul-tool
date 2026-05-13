@@ -1,35 +1,188 @@
-export default {
-  async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-    const targetUrl = "https://brixhub.net" + url.pathname + url.search;
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAUL-TOOLS | OSINT Pro</title>
+    <style>
+        :root { --red: #ff4d4d; --bg: #0a0a0a; --card: #161616; --input: #000; }
+        body { background: var(--bg); color: #eee; font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; padding: 20px; margin: 0; }
+        .app { width: 100%; max-width: 800px; background: var(--card); border-radius: 10px; border: 1px solid #333; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        
+        .header { background: #1a1a1a; padding: 20px; text-align: center; border-bottom: 2px solid var(--red); }
+        h1 { color: var(--red); margin: 0; letter-spacing: 4px; font-size: 1.8rem; }
 
-    // Récupérer les headers d'origine
-    const headers = new Headers(request.headers);
-    
-    // Forcer les autorisations CORS pour ton site
-    const corsHeaders = {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, X-API-Key",
-    };
+        /* Système d'accordéon (Flèches) */
+        .category { border-bottom: 1px solid #222; }
+        .category-header { padding: 15px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: #1a1a1a; transition: 0.3s; }
+        .category-header:hover { background: #222; }
+        .category-header h3 { margin: 0; font-size: 1rem; color: var(--red); text-transform: uppercase; }
+        .arrow { transition: transform 0.3s; }
+        
+        .category-content { display: none; padding: 20px; background: var(--card); grid-template-columns: 1fr 1fr; gap: 10px; }
+        .active .category-content { display: grid; }
+        .active .arrow { transform: rotate(180deg); }
 
-    if (request.method === "OPTIONS") {
-      return new Response(null, { headers: corsHeaders });
+        input { background: var(--input); border: 1px solid #444; color: #00ff00; padding: 10px; border-radius: 4px; outline: none; font-family: monospace; }
+        input:focus { border-color: var(--red); }
+        
+        .actions { padding: 20px; display: flex; gap: 10px; background: #1a1a1a; }
+        button { flex: 1; padding: 15px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s; text-transform: uppercase; }
+        .btn-search { background: var(--red); color: white; }
+        .btn-clear { background: #444; color: #ccc; }
+
+        #results { padding: 20px; display: none; background: #000; font-family: monospace; }
+        .profile-card { border-left: 3px solid var(--red); padding: 10px; margin-bottom: 15px; background: #111; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+<div class="app">
+    <div class="header">
+        <h1>PAUL-TOOLS 🔍</h1>
+    </div>
+
+    <div class="category">
+        <div class="category-header" onclick="toggleCat(this)">
+            <h3>👤 Identité</h3>
+            <span class="arrow">▼</span>
+        </div>
+        <div class="category-content">
+            <input type="text" id="nom_famille" placeholder="Nom de famille">
+            <input type="text" id="prenom" placeholder="Prénom">
+            <input type="text" id="nom_naissance" placeholder="Nom de naissance">
+            <input type="text" id="nom_affichage" placeholder="Nom d'affichage">
+            <input type="text" id="nom_utilisateur" placeholder="Nom d'utilisateur">
+            <input type="text" id="date_naissance" placeholder="Date (JJ/MM/AAAA)">
+            <input type="text" id="genre" placeholder="Genre (M/F)">
+            <input type="text" id="civilite" placeholder="Civilité (M./Mme)">
+        </div>
+    </div>
+
+    <div class="category">
+        <div class="category-header" onclick="toggleCat(this)">
+            <h3>📞 Contact</h3>
+            <span class="arrow">▼</span>
+        </div>
+        <div class="category-content">
+            <input type="text" id="email" placeholder="Adresse Email">
+            <input type="text" id="telephone" placeholder="Téléphone">
+            <input type="text" id="mobile" placeholder="Mobile">
+            <input type="text" id="adresse_ip" placeholder="Adresse IP">
+        </div>
+    </div>
+
+    <div class="category">
+        <div class="category-header" onclick="toggleCat(this)">
+            <h3>📍 Adresse</h3>
+            <span class="arrow">▼</span>
+        </div>
+        <div class="category-content">
+            <input type="text" id="adresse" placeholder="Rue et numéro">
+            <input type="text" id="code_postal" placeholder="Code Postal">
+            <input type="text" id="ville" placeholder="Ville">
+            <input type="text" id="pays" placeholder="Pays (Ex: FR)">
+        </div>
+    </div>
+
+    <div class="category">
+        <div class="category-header" onclick="toggleCat(this)">
+            <h3>🆔 Identifiants Uniques</h3>
+            <span class="arrow">▼</span>
+        </div>
+        <div class="category-content">
+            <input type="text" id="nir" placeholder="Numéro Sécu (NIR)">
+            <input type="text" id="iban" placeholder="IBAN">
+            <input type="text" id="siren" placeholder="SIREN">
+            <input type="text" id="siret" placeholder="SIRET">
+        </div>
+    </div>
+
+    <div class="category">
+        <div class="category-header" onclick="toggleCat(this)">
+            <h3>🚗 Véhicule</h3>
+            <span class="arrow">▼</span>
+        </div>
+        <div class="category-content">
+            <input type="text" id="immatriculation" placeholder="Plaque (AB-123-CD)">
+            <input type="text" id="vin_plaque" placeholder="Numéro VIN">
+            <input type="text" id="marque" placeholder="Marque">
+            <input type="text" id="modele" placeholder="Modèle">
+        </div>
+    </div>
+
+    <div class="category">
+        <div class="category-header" onclick="toggleCat(this)">
+            <h3>💼 Professionnel</h3>
+            <span class="arrow">▼</span>
+        </div>
+        <div class="category-content">
+            <input type="text" id="societe" placeholder="Entreprise">
+            <input type="text" id="profession" placeholder="Métier">
+            <input type="text" id="fonction" placeholder="Poste occupé">
+        </div>
+    </div>
+
+    <div class="actions">
+        <button class="btn-clear" onclick="location.reload()">♻️ Reset</button>
+        <button class="btn-search" onclick="lancer()">🚀 Lancer l'Analyse</button>
+    </div>
+
+    <div id="results"></div>
+</div>
+
+<script>
+    // URL de ton serveur Python sur Render (à mettre à jour)
+    const API_URL = "https://ton-app-paul-tools.onrender.com/search";
+
+    function toggleCat(el) {
+        el.parentElement.classList.toggle('active');
     }
 
-    const response = await fetch(targetUrl, {
-      method: request.method,
-      headers: headers,
-      body: request.method === "POST" ? await request.arrayBuffer() : null,
-    });
+    async function lancer() {
+        const resBox = document.getElementById('results');
+        const inputs = document.querySelectorAll('input');
+        let payload = { flexible: true };
+        let found = 0;
 
-    const responseHeaders = new Headers(response.headers);
-    Object.keys(corsHeaders).forEach(k => responseHeaders.set(k, corsHeaders[k]));
+        inputs.forEach(i => {
+            if (i.value.trim()) {
+                payload[i.id] = i.value.trim();
+                found++;
+            }
+        });
 
-    return new Response(response.body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: responseHeaders,
-    });
-  },
-};
+        if (found === 0) return alert("Veuillez saisir au moins une info !");
+
+        resBox.style.display = 'block';
+        resBox.innerHTML = "📡 Interrogation de la base de données...";
+
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            
+            if (data.data && data.data.results) {
+                let html = `<h3>✅ ${data.data.results.length} Résultat(s)</h3>`;
+                data.data.results.forEach(p => {
+                    html += `<div class="profile-card"><b>🎯 CIBLE IDENTIFIÉE</b> (Confiance: ${p._confidence}%)<br>`;
+                    for (let [k, v] of Object.entries(p)) {
+                        if(!k.startsWith('_')) html += `<br><span style="color:#666">${k.toUpperCase()}:</span> ${v}`;
+                    }
+                    html += `</div>`;
+                });
+                resBox.innerHTML = html;
+            } else {
+                resBox.innerHTML = "❌ Aucun résultat trouvé.";
+            }
+        } catch (e) {
+            resBox.innerHTML = "🛑 Erreur de connexion au backend Python.";
+        }
+    }
+</script>
+
+</body>
+</html>
